@@ -1,29 +1,35 @@
-// src/App.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Login from "./components/Login";
 import Dashboard from "./components/prestamos/Dashboard";
-import PrestamoTable from "./components/prestamos/PrestamoTable";
-import SolicitudPrestamo from "./components/prestamos/SolicitudPrestamo";
-import GestionPagos from "./components/prestamos/GestionPagos";
-import PerfilUsuario from "./components/prestamos/PerfilUsuario";
+import NuevoPrestamo from "./components/prestamos/NuevoPrestamo";
 import ListaClientes from "./components/clientes/ListaClientes";
 import Reportes from "./components/reportes/Reportes";
 import Ajustes from "./components/ajustes/Ajustes";
 import "./index.css";
+import logo from "./assets/images/logo.png";
+import {
+  FiHome,
+  FiUsers,
+  FiBarChart2,
+  FiLogOut,
+  FiPlusCircle,
+  FiSettings,
+  FiUser,
+  FiChevronDown,
+  FiChevronUp,
+  FiMenu,
+  FiX,
+} from "react-icons/fi";
 
 function App() {
   const [user, setUser] = useState<any>(null);
   const [view, setView] = useState<
-    | "dashboard"
-    | "nuevo"
-    | "pagos"
-    | "clientes"
-    | "reportes"
-    | "ajustes"
-    | "perfil"
+    "dashboard" | "nuevo" | "pagos" | "clientes" | "reportes" | "ajustes"
   >("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Detectar si es móvil y ajustar sidebar
   useEffect(() => {
@@ -38,18 +44,36 @@ function App() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Hook para cerrar el menú si se hace clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userMenuRef]);
+
   if (!user) {
     return <Login onLogin={setUser} />;
   }
 
   const navigationItems = [
-    { key: "dashboard" as const, label: "INICIO", icon: "🏠" },
-    { key: "nuevo" as const, label: "NUEVO PRÉSTAMO", icon: "💰" },
-    { key: "pagos" as const, label: "PAGOS", icon: "💳" },
-    { key: "clientes" as const, label: "CLIENTES", icon: "👥" },
-    { key: "reportes" as const, label: "REPORTES", icon: "📊" },
-    { key: "ajustes" as const, label: "AJUSTES", icon: "⚙️" },
-    { key: "perfil" as const, label: "MI PERFIL", icon: "👤" },
+    { key: "dashboard" as const, label: "Dashboard", icon: <FiHome /> },
+    {
+      key: "nuevo" as const,
+      label: "Nuevo Préstamo",
+      icon: <FiPlusCircle />,
+    },
+    { key: "clientes" as const, label: "Clientes", icon: <FiUsers /> },
+    { key: "reportes" as const, label: "Reportes", icon: <FiBarChart2 /> },
+    { key: "ajustes" as const, label: "Ajustes", icon: <FiSettings /> },
   ];
 
   const toggleSidebar = () => {
@@ -69,119 +93,74 @@ function App() {
       {/* SIDEBAR */}
       <div
         className={`
-        bg-gradient-to-b from-blue-800 to-blue-900 text-white 
-        shadow-xl
+        bg-slate-900 text-white
         transition-all duration-300 ease-in-out
         fixed md:relative z-30
-        ${sidebarOpen ? "w-64" : "w-0 md:w-20"}
+        ${sidebarOpen ? "w-64" : "w-0 md:w-0"}
         ${isMobile ? "h-full" : "min-h-screen"}
         flex flex-col
       `}
       >
-        {/* HEADER SIDEBAR */}
-        <div
-          className={`p-4 border-b border-slate-800 ${
-            !sidebarOpen && "hidden md:block"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <>
-                <div>
-                  <h1 className="text-xl font-bold">Sistema Préstamos</h1>
-                  <p className="text-blue-200 text-sm">v2.0</p>
-                </div>
-                <button
-                  onClick={toggleSidebar}
-                  className="p-1 rounded-lg hover:bg-slate-800 transition"
-                >
-                  ◀
-                </button>
-              </>
-            )}
-            {!sidebarOpen && (
-              <button
-                onClick={toggleSidebar}
-                className="p-2 rounded-lg bg-slate-800 transition mx-auto"
-              >
-                ▶
-              </button>
-            )}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Logo y Título */}
+          <div className="flex items-center gap-3 px-4 py-5 mb-6">
+            <img src={logo} alt="Logo" className="h-10 w-10" />
+            <span className="text-xl font-bold">Sistema</span>
           </div>
-        </div>
 
-        {/* USUARIO INFO */}
-        <div
-          className={`p-4 border-b bg-slate-800 ${
-            !sidebarOpen && "hidden md:block"
-          }`}
-        >
-          {sidebarOpen && (
-            <div className="text-center">
-              <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
-                <span className="text-xl">👤</span>
-              </div>
-              <p className="font-semibold truncate">{user.nombre}</p>
-              <p className="text-blue-200 text-sm capitalize">
-                {user.rol?.toLowerCase()}
-              </p>
-            </div>
-          )}
-          {!sidebarOpen && (
-            <div className="text-center">
-              <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center mx-auto">
-                <span className="text-lg">👤</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* NAVEGACIÓN PRINCIPAL */}
-        <nav className="flex-1 p-4 space-y-2">
-          {navigationItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => {
-                setView(item.key);
-                if (isMobile) setSidebarOpen(false);
-              }}
-              className={`
-                w-full flex items-center p-3 rounded-xl transition-all duration-200
-                ${
+          {/* Navegación Principal */}
+          <nav className="flex-1 px-4 space-y-2">
+            {navigationItems.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => {
+                  setView(item.key);
+                  if (isMobile) setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center space-x-4 px-4 py-3 rounded-lg transition-all duration-200 ${
                   view === item.key
-                    ? "bg-white text-blue-800 shadow-lg"
-                    : "text-blue-100 hover:bg-slate-800 hover:text-white"
-                }
-                ${!sidebarOpen && "justify-center"}
-              `}
-            >
-              <span className="text-xl">{item.icon}</span>
-              {sidebarOpen && (
-                <span className="ml-3 font-medium">{item.label}</span>
-              )}
-            </button>
-          ))}
-        </nav>
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "text-gray-400 hover:bg-slate-700/50 hover:text-white"
+                }`}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-semibold">{item.label}</span>
+              </button>
+            ))}
+          </nav>
 
-        {/* CERRAR SESIÓN - SIEMPRE ABAJO */}
-        <div
-          className={`p-4 border-t border-slate-800 ${
-            !sidebarOpen && "hidden md:block"
-          }`}
-        >
-          <button
-            onClick={() => setUser(null)}
-            className={`
-              w-full flex items-center p-3 rounded-xl transition-all duration-200
-              bg-red-600 hover:bg-red-700 text-white
-              ${!sidebarOpen && "justify-center"}
-            `}
+          {/* Perfil de Usuario y Menú Desplegable */}
+          <div
+            className="border-t border-slate-700 p-4 relative"
+            ref={userMenuRef}
           >
-            <span className="text-xl">🚪</span>
-            {sidebarOpen && (
-              <span className="ml-3 font-medium">CERRAR SESIÓN</span>
+            {/* Menú desplegable de Logout */}
+            {showUserMenu && (
+              <div className="absolute bottom-full mb-2 w-full left-0 bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+                <button
+                  onClick={() => setUser(null)}
+                  className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors duration-200"
+                >
+                  <FiLogOut className="text-lg" />
+                  <span className="font-semibold">Cerrar Sesión</span>
+                </button>
+              </div>
             )}
-          </button>
+
+            {/* Botón para abrir el menú */}
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-700/50 transition-colors duration-200"
+            >
+              <div>
+                <p className="font-semibold">{user.nombre}</p>
+                <p className="text-sm text-gray-400 capitalize">
+                  {user.rol?.toLowerCase()}
+                </p>
+              </div>
+              {showUserMenu ? <FiChevronDown /> : <FiChevronUp />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -195,16 +174,14 @@ function App() {
                 onClick={toggleSidebar}
                 className="p-2 rounded-lg hover:bg-gray-100 mr-4 md:hidden"
               >
-                ☰
+                {sidebarOpen ? <FiX /> : <FiMenu />}
               </button>
               <h1 className="text-2xl font-bold text-gray-800">
                 {view === "dashboard" && "Panel Principal"}
                 {view === "nuevo" && "Nuevo Préstamo"}
-                {view === "pagos" && "Gestión de Pagos"}
                 {view === "clientes" && "Gestión de Clientes"}
                 {view === "reportes" && "Reportes y Estadísticas"}
                 {view === "ajustes" && "Ajustes del Sistema"}
-                {view === "perfil" && "Mi Perfil"}
               </h1>
             </div>
             <div className="text-sm text-gray-600">
@@ -222,12 +199,10 @@ function App() {
         <main className="flex-1 p-6 overflow-auto">
           {view === "dashboard" && <Dashboard />}
 
-          {view === "nuevo" && <SolicitudPrestamo />}
-          {view === "pagos" && <GestionPagos />}
+          {view === "nuevo" && <NuevoPrestamo />}
           {view === "clientes" && <ListaClientes />}
           {view === "reportes" && <Reportes />}
           {view === "ajustes" && <Ajustes />}
-          {view === "perfil" && <PerfilUsuario />}
         </main>
       </div>
     </div>
