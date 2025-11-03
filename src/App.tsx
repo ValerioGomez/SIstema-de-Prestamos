@@ -80,7 +80,7 @@ function App() {
       >
         {/* HEADER SIDEBAR */}
         <div
-          className={`p-4 border-b border-blue-700 ${
+          className={`p-4 border-b border-slate-800 ${
             !sidebarOpen && "hidden md:block"
           }`}
         >
@@ -93,7 +93,7 @@ function App() {
                 </div>
                 <button
                   onClick={toggleSidebar}
-                  className="p-1 rounded-lg hover:bg-blue-700 transition"
+                  className="p-1 rounded-lg hover:bg-slate-800 transition"
                 >
                   ◀
                 </button>
@@ -102,7 +102,7 @@ function App() {
             {!sidebarOpen && (
               <button
                 onClick={toggleSidebar}
-                className="p-2 rounded-lg hover:bg-blue-700 transition mx-auto"
+                className="p-2 rounded-lg bg-slate-800 transition mx-auto"
               >
                 ▶
               </button>
@@ -112,13 +112,13 @@ function App() {
 
         {/* USUARIO INFO */}
         <div
-          className={`p-4 border-b border-blue-700 ${
+          className={`p-4 border-b bg-slate-800 ${
             !sidebarOpen && "hidden md:block"
           }`}
         >
           {sidebarOpen && (
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+              <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
                 <span className="text-xl">👤</span>
               </div>
               <p className="font-semibold truncate">{user.nombre}</p>
@@ -129,7 +129,7 @@ function App() {
           )}
           {!sidebarOpen && (
             <div className="text-center">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center mx-auto">
                 <span className="text-lg">👤</span>
               </div>
             </div>
@@ -150,7 +150,7 @@ function App() {
                 ${
                   view === item.key
                     ? "bg-white text-blue-800 shadow-lg"
-                    : "text-blue-100 hover:bg-blue-700 hover:text-white"
+                    : "text-blue-100 hover:bg-slate-800 hover:text-white"
                 }
                 ${!sidebarOpen && "justify-center"}
               `}
@@ -165,7 +165,7 @@ function App() {
 
         {/* CERRAR SESIÓN - SIEMPRE ABAJO */}
         <div
-          className={`p-4 border-t border-blue-700 ${
+          className={`p-4 border-t border-slate-800 ${
             !sidebarOpen && "hidden md:block"
           }`}
         >

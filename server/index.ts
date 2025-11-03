@@ -62,13 +62,37 @@ app.get("/api/clientes/dni/:dni", async (req, res) => {
 app.post("/api/clientes", async (req, res) => {
   const { cedula, nombre, telefono, correo, direccion } = req.body;
   try {
+    // Verificar si ya existe un cliente con la misma cédula
+    const cedulaExistente = await prisma.cliente.findUnique({
+      where: { cedula },
+    });
+    if (cedulaExistente) {
+      return res
+        .status(409)
+        .json({ error: `El DNI ${cedula} ya está registrado.` });
+    }
+
+    // Verificar si ya existe un cliente con el mismo correo (si se proporcionó)
+    if (correo) {
+      const correoExistente = await prisma.cliente.findUnique({
+        where: { correo },
+      });
+      if (correoExistente) {
+        return res
+          .status(409)
+          .json({ error: `El correo ${correo} ya está en uso.` });
+      }
+    }
+
     const cliente = await prisma.cliente.create({
-      data: { cedula, nombre, telefono, correo, direccion },
+      data: { cedula, nombre, telefono, correo: correo || null, direccion },
     });
     res.json(cliente);
   } catch (error) {
-    console.error("Error crear cliente:", error);
-    res.status(500).json({ error: "Error al crear cliente" });
+    console.error("Error al crear cliente:", error);
+    res
+      .status(500)
+      .json({ error: "Ocurrió un error inesperado al crear el cliente." });
   }
 });
 

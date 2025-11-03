@@ -37,6 +37,7 @@ export default function ListaClientes() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedClientDetails, setSelectedClientDetails] =
     useState<ClienteDetallado | null>(null);
+  const [showLoanHistoryModal, setShowLoanHistoryModal] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fetchClientes = async () => {
@@ -118,6 +119,7 @@ export default function ListaClientes() {
   const cerrarModales = () => {
     setShowEditModal(false);
     setShowDetailsModal(false);
+    setShowLoanHistoryModal(false);
     setClienteActual(null);
     setSelectedClientDetails(null);
   };
@@ -398,15 +400,21 @@ export default function ListaClientes() {
                     )}
                   </p>
                   <p>
-                    <strong>Préstamos totales:</strong>{" "}
-                    {selectedClientDetails.prestamos.length}
+                    <strong>Préstamos totales:</strong>
+                    <button
+                      onClick={() => setShowLoanHistoryModal(true)}
+                      className="ml-2 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+                      disabled={selectedClientDetails.prestamos.length === 0}
+                    >
+                      {selectedClientDetails.prestamos.length} (Ver historial)
+                    </button>
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 mt-6">
                   <button
                     onClick={() => abrirModalEdicion(selectedClientDetails)}
-                    className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
                   >
                     <FiEdit /> Editar
                   </button>
@@ -415,7 +423,7 @@ export default function ListaClientes() {
                       handleEliminarCliente(selectedClientDetails.id)
                     }
                     disabled={selectedClientDetails.prestamos.length > 0}
-                    className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <FiTrash2 /> Eliminar
                   </button>
@@ -430,6 +438,71 @@ export default function ListaClientes() {
             ) : (
               <p>No se pudieron cargar los detalles.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HISTORIAL DE PRÉSTAMOS */}
+      {showLoanHistoryModal && selectedClientDetails && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"
+          onClick={cerrarModales}
+        >
+          <div
+            className="bg-white rounded-xl p-6 w-full max-w-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-800 mb-4">
+              Historial de Préstamos de: {selectedClientDetails.nombre}
+            </h3>
+            <div className="max-h-96 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Monto
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fecha Inicio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {selectedClientDetails.prestamos.map((prestamo) => (
+                    <tr key={prestamo.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        S/ {prestamo.monto.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {format(new Date(prestamo.fechaInicio), "dd/MM/yyyy")}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            prestamo.estado === "PAGADO"
+                              ? "bg-green-100 text-green-800"
+                              : prestamo.estado === "ATRASADO"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {prestamo.estado}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button
+              onClick={cerrarModales}
+              className="mt-6 w-full py-3 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}
