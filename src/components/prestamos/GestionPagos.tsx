@@ -1,7 +1,8 @@
 // src/components/prestamos/GestionPagos.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, isBefore, differenceInDays } from "date-fns";
+import ListaPrestamosPaginados from "./ListaPrestamosPaginados";
 import toast from "react-hot-toast";
 
 interface Prestamo {
@@ -14,6 +15,7 @@ interface Prestamo {
   notas?: string;
   pagos: Pago[];
   cliente: {
+    id: string;
     nombre: string;
     cedula: string;
   };
@@ -26,8 +28,16 @@ interface Pago {
   fechaPago: string;
 }
 
+interface Cliente {
+  id: string;
+  nombre: string;
+  cedula: string;
+}
+
 export default function GestionPagos() {
-  const [dni, setDni] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Cliente[]>([]);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -40,41 +50,58 @@ export default function GestionPagos() {
   const [showModalAdelanto, setShowModalAdelanto] = useState(false);
   const [nuevoPrestamo, setNuevoPrestamo] = useState({ monto: "", notas: "" });
 
-  // FUNCIÓN BUSCAR PRÉSTAMOS - CORREGIDA
-  const buscarPrestamos = async () => {
-    if (dni.length < 8) {
-      toast.error("DNI debe tener 8 dígitos");
+  // BÚSQUEDA DE CLIENTES EN TIEMPO REAL (DEBOUNCED)
+  useEffect(() => {
+    if (searchTerm.length < 3 || selectedCliente) {
+      setSearchResults([]);
       return;
     }
 
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `http://localhost:4000/api/clientes/buscar?term=${searchTerm}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+        }
+      } catch (error) {
+        toast.error("Error al buscar clientes");
+      } finally {
+        setLoading(false);
+      }
+    }, 500); // 500ms de espera
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, selectedCliente]);
+
+  // FUNCIÓN PARA CARGAR PRÉSTAMOS DE UN CLIENTE SELECCIONADO
+  const cargarPrestamosCliente = async (cliente: Cliente) => {
     setLoading(true);
+    setSearchTerm(`${cliente.nombre} (${cliente.cedula})`);
+    setSelectedCliente(cliente);
+    setSearchResults([]);
+    setPrestamos([]);
+
     try {
-      console.log("🔍 Buscando préstamos para DNI:", dni);
-
       const res = await fetch(
-        `http://localhost:4000/api/prestamos/cliente/${dni}`
+        `http://localhost:4000/api/prestamos/cliente/${cliente.cedula}`
       );
-
-      console.log("📥 Respuesta del servidor:", res.status);
-
       if (res.ok) {
         const data = await res.json();
-        console.log("📊 Préstamos encontrados:", data);
         setPrestamos(data);
-
         if (data.length === 0) {
-          toast.info("No se encontraron préstamos para este cliente");
+          toast.info("Este cliente no tiene préstamos registrados.");
         } else {
-          toast.success(`Encontrados ${data.length} préstamos`);
+          toast.success(`Se encontraron ${data.length} préstamos.`);
         }
       } else {
-        const errorData = await res.json();
-        console.error("❌ Error del servidor:", errorData);
-        toast.error(errorData.error || "Error al buscar préstamos");
+        toast.error("No se pudieron cargar los préstamos de este cliente.");
       }
     } catch (error) {
-      console.error("💥 Error de conexión:", error);
-      toast.error("Error de conexión con el servidor");
+      toast.error("Error de conexión al cargar los préstamos.");
     } finally {
       setLoading(false);
     }
@@ -176,7 +203,7 @@ export default function GestionPagos() {
         body: JSON.stringify({
           prestamoId: prestamoSeleccionado.id,
           monto: montoNum,
-          tipoPago: tipoPago,
+          tipoPago: "CUOTA", // Corregido: Enviar un valor válido del enum
           notas: `Pago ${tipoPago.toLowerCase()}`,
         }),
       });
@@ -184,7 +211,7 @@ export default function GestionPagos() {
       if (res.ok) {
         toast.success(`Pago de S/ ${montoNum} registrado exitosamente`);
         setShowModal(false);
-        buscarPrestamos(); // Recargar lista
+        if (selectedCliente) cargarPrestamosCliente(selectedCliente); // Recargar lista
       } else {
         toast.error("Error al registrar pago");
       }
@@ -216,7 +243,7 @@ export default function GestionPagos() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clienteId: prestamoSeleccionado.cliente.cedula,
+          clienteId: prestamoSeleccionado.cliente.id,
           monto: nuevoPrestamo.monto,
           notas: nuevoPrestamo.notas,
         }),
@@ -227,7 +254,7 @@ export default function GestionPagos() {
           `Préstamo de S/ ${nuevoPrestamo.monto} creado por adelanto`
         );
         setShowModalAdelanto(false);
-        buscarPrestamos(); // Recargar lista
+        if (selectedCliente) cargarPrestamosCliente(selectedCliente); // Recargar lista
       }
     } catch (error) {
       toast.error("Error al procesar adelanto");
@@ -242,23 +269,56 @@ export default function GestionPagos() {
 
       {/* BUSCAR POR DNI */}
       <div className="bg-white rounded-xl shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Buscar Cliente</h2>
-        <div className="flex gap-4">
+        <h2 className="text-xl font-semibold mb-4">
+          Buscar Cliente para Gestionar Pagos
+        </h2>
+        <div className="relative">
           <input
             type="text"
-            value={dni}
-            onChange={(e) => setDni(e.target.value)}
-            placeholder="Ingrese DNI del cliente"
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            maxLength={8}
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              if (selectedCliente) {
+                setSelectedCliente(null);
+                setPrestamos([]);
+              }
+            }}
+            placeholder="Buscar por Nombre o DNI..."
+            className="w-full p-4 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500"
+            disabled={!!selectedCliente}
           />
-          <button
-            onClick={buscarPrestamos}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? "Buscando..." : "Buscar"}
-          </button>
+          {loading && !selectedCliente && (
+            <p className="text-sm text-gray-500 mt-2">Buscando...</p>
+          )}
+
+          {/* Resultados de la búsqueda */}
+          {searchResults.length > 0 && !selectedCliente && (
+            <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+              {searchResults.map((c) => (
+                <li
+                  key={c.id}
+                  onClick={() => cargarPrestamosCliente(c)}
+                  className="p-3 hover:bg-blue-50 cursor-pointer border-b"
+                >
+                  <p className="font-semibold">{c.nombre}</p>
+                  <p className="text-sm text-gray-600">{c.cedula}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {selectedCliente && (
+            <button
+              onClick={() => {
+                setSelectedCliente(null);
+                setSearchTerm("");
+                setPrestamos([]);
+              }}
+              className="absolute top-1/2 right-4 -translate-y-1/2 text-red-500 hover:text-red-700 font-semibold"
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
@@ -273,17 +333,18 @@ export default function GestionPagos() {
           </div>
 
           <div className="divide-y">
-            {prestamos.map((prestamo) => {
+            {prestamos.map((prestamo, index) => {
               const estado = getEstadoPrestamo(prestamo);
               const saldoPendiente = calcularSaldoPendiente(prestamo);
               const totalPagado = prestamo.monto - saldoPendiente;
+              const numeroPrestamo = prestamos.length - index;
 
               return (
                 <div key={prestamo.id} className="p-6 hover:bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="font-semibold text-lg">
-                        Préstamo #{prestamo.id.slice(-6)}
+                        Préstamo N°{numeroPrestamo}
                       </h3>
                       <p className="text-gray-600">
                         {format(new Date(prestamo.fechaInicio), "dd/MM/yyyy")} -
@@ -481,6 +542,9 @@ export default function GestionPagos() {
           </div>
         </div>
       )}
+
+      {/* Tabla de préstamos paginados */}
+      <ListaPrestamosPaginados />
     </div>
   );
 }

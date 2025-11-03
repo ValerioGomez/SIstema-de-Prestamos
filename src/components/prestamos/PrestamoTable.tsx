@@ -4,7 +4,6 @@ import toast from "react-hot-toast";
 
 interface Prestamo {
   id: string;
-  cliente: { nombre: string };
   cliente: { nombre: string; cedula: string };
   monto: number;
   estado: string;
@@ -16,23 +15,6 @@ export default function PrestamoTable() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulación de datos (luego será fetch real)
-    setTimeout(() => {
-      setPrestamos([
-        {
-          id: "1",
-          cliente: { nombre: "Juan Pérez" },
-          monto: 5000,
-          estado: "ACTIVO",
-        },
-        {
-          id: "2",
-          cliente: { nombre: "María López" },
-          monto: 3000,
-          estado: "PAGADO",
-        },
-      ]);
-    }, 500);
     const cargarPrestamosRecientes = async () => {
       setLoading(true);
       try {
@@ -78,8 +60,6 @@ export default function PrestamoTable() {
             </th>
           </tr>
         </thead>
-        <tbody>
-          {prestamos.map((p) => (
         <tbody className="divide-y divide-gray-200">
           {loading && (
             <tr>
@@ -95,34 +75,34 @@ export default function PrestamoTable() {
               </td>
             </tr>
           )}
-          {!loading && prestamos.map((p) => (
-            <tr key={p.id} className="border-t">
-              <td className="py-3 px-6">{p.cliente.nombre}</td>
-              <td className="py-3 px-6">${p.monto}</td>
-              <td className="py-3 px-6">S/ {p.monto.toFixed(2)}</td>
-              <td className="py-3 px-6">
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium
+          {!loading &&
+            prestamos.map((p) => (
+              <tr key={p.id} className="border-t">
+                <td className="py-3 px-6">{p.cliente.nombre}</td>
+                <td className="py-3 px-6">S/ {p.monto.toFixed(2)}</td>
+                <td className="py-3 px-6">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium
                   ${p.estado === "PAGADO" ? "bg-green-100 text-green-800" : ""}
                   ${
                     p.estado === "ACTIVO" ? "bg-yellow-100 text-yellow-800" : ""
                   }
                   ${p.estado === "ATRASADO" ? "bg-red-100 text-red-800" : ""}
                 `}
-                >
-                  {p.estado}
-                </span>
-              </td>
-              <td className="py-3 px-6">
-                <button className="text-blue-600 hover:underline mr-3">
-                  Ver
-                </button>
-                <button className="text-red-600 hover:underline">
-                  Eliminar
-                </button>
-              </td>
-            </tr>
-          ))}
+                  >
+                    {p.estado}
+                  </span>
+                </td>
+                <td className="py-3 px-6">
+                  <button className="text-blue-600 hover:underline mr-3">
+                    Ver
+                  </button>
+                  <button className="text-red-600 hover:underline">
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </table>
     </div>

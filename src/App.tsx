@@ -220,20 +220,10 @@ function App() {
 
         {/* CONTENIDO DINÁMICO */}
         <main className="flex-1 p-6 overflow-auto">
-          {view === "dashboard" && (
-            <div className="space-y-6">
-              <Dashboard />
-              <div className="bg-white p-6 rounded-xl shadow">
-                <h2 className="text-2xl font-semibold mb-4">
-                  Préstamos Activos
-                </h2>
-                <PrestamoTable />
-              </div>
-            </div>
-          )}
+          {view === "dashboard" && <Dashboard />}
 
           {view === "nuevo" && <SolicitudPrestamo />}
-          {view === "pagos" && <GestionPagos prestamoId="1" />}
+          {view === "pagos" && <GestionPagos />}
           {view === "clientes" && <ListaClientes />}
           {view === "reportes" && <Reportes />}
           {view === "ajustes" && <Ajustes />}

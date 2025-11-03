@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { format, addDays } from "date-fns";
+import { format, addDays, addMonths, differenceInDays } from "date-fns";
 import toast from "react-hot-toast";
+import ListaPrestamosPaginados from "./ListaPrestamosPaginados";
 
 interface Cliente {
   id: string;
@@ -11,15 +12,20 @@ interface Cliente {
   cedula: string;
   telefono?: string;
   correo?: string;
+  direccion?: string;
 }
 
 export default function NuevoPrestamo() {
-  const [dni, setDni] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Cliente[]>([]);
   const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [dias, setDias] = useState(2);
+
+  const [tipoPrestamo, setTipoPrestamo] = useState<"diario" | "mensual">(
+    "diario"
+  );
+  const [dias, setDias] = useState(30);
   const [monto, setMonto] = useState("");
   const [interes, setInteres] = useState(1);
-  const [interesEditado, setInteresEditado] = useState(false);
   const [fechaInicio, setFechaInicio] = useState(new Date());
   const [fechaFin, setFechaFin] = useState(addDays(new Date(), 2));
   const [showModal, setShowModal] = useState(false);
@@ -27,67 +33,96 @@ export default function NuevoPrestamo() {
     nombre: "",
     telefono: "",
     correo: "",
+    direccion: "",
   });
   const [loading, setLoading] = useState(false);
 
   // CÁLCULOS EN TIEMPO REAL
   const montoNum = parseFloat(monto) || 0;
-  const interesTotal = montoNum * (interes / 100) * dias;
+  const interesDiario =
+    tipoPrestamo === "diario" ? interes / 100 : interes / 100 / 30;
+  const interesTotal = montoNum * interesDiario * dias;
   const totalPagar = montoNum + interesTotal;
 
-  // ACTUALIZAR FECHA FIN AUTOMÁTICAMENTE
+  // BÚSQUEDA DE CLIENTES EN TIEMPO REAL (DEBOUNCED)
   useEffect(() => {
-    setFechaFin(addDays(fechaInicio, dias));
-  }, [fechaInicio, dias]);
-
-  // BUSCAR CLIENTE
-  const buscarCliente = async () => {
-    if (dni.length < 8) {
-      toast.error("DNI debe tener 8 dígitos");
+    if (searchTerm.length < 3) {
+      setSearchResults([]);
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`http://localhost:4000/api/clientes/dni/${dni}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          setCliente(data);
-          toast.success(`Cliente encontrado: ${data.nombre}`);
-        } else {
-          setCliente(null);
-          setShowModal(true);
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `http://localhost:4000/api/clientes/buscar?term=${searchTerm}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
         }
+      } catch (error) {
+        toast.error("Error al buscar clientes");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      toast.error("Error de conexión");
-    } finally {
-      setLoading(false);
+    }, 500); // 500ms de espera
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  // SINCRONIZACIÓN DE LÓGICA DE PRÉSTAMO
+  useEffect(() => {
+    if (tipoPrestamo === "diario") {
+      setInteres(1);
+      setDias(30);
+      setFechaFin(addDays(fechaInicio, 30));
+    } else {
+      // Mensual
+      setInteres(15);
+      const nuevaFechaFin = addMonths(fechaInicio, 1);
+      setFechaFin(nuevaFechaFin);
+      setDias(differenceInDays(nuevaFechaFin, fechaInicio));
     }
+  }, [tipoPrestamo, fechaInicio]);
+
+  // SINCRONIZACIÓN DÍAS <-> FECHA FIN
+  const handleDiasChange = (nuevosDias: number) => {
+    setDias(nuevosDias);
+    setFechaFin(addDays(fechaInicio, nuevosDias));
   };
 
-  // En NuevoPrestamo.tsx - actualizar la función
-  const cargarPrestamosRecientes = async () => {
-    try {
-      const res = await fetch("http://localhost:4000/api/prestamos/recientes");
-      if (res.ok) {
-        const data = await res.json();
-        // Ordenar por fecha de inicio (más nuevo primero)
-        const sortedData = data.sort(
-          (a: any, b: any) =>
-            new Date(b.fechaInicio).getTime() -
-            new Date(a.fechaInicio).getTime()
-        );
-        setPrestamosRecientes(sortedData);
-      }
-    } catch (error) {
-      console.error("Error cargar préstamos:", error);
+  const handleFechaFinChange = (nuevaFecha: Date) => {
+    setFechaFin(nuevaFecha);
+    setDias(differenceInDays(nuevaFecha, fechaInicio) + 1);
+  };
+
+  // BUSCAR CLIENTE
+  const seleccionarCliente = (clienteSeleccionado: Cliente) => {
+    setCliente(clienteSeleccionado);
+    setSearchTerm(
+      `${clienteSeleccionado.nombre} (${clienteSeleccionado.cedula})`
+    );
+    setSearchResults([]);
+  };
+
+  const handleShowModal = () => {
+    if (searchTerm.length < 8 || isNaN(Number(searchTerm))) {
+      toast.error("Para crear un cliente, ingrese un DNI válido de 8 dígitos.");
+      return;
     }
-  }; // CREAR CLIENTE NUEVO
+    setShowModal(true);
+  };
+
+  // CREAR CLIENTE NUEVO
   const crearCliente = async () => {
     if (!nuevoCliente.nombre.trim()) {
       toast.error("Nombre es requerido");
+      return;
+    }
+
+    if (searchTerm.length !== 8 || isNaN(Number(searchTerm))) {
+      toast.error("El DNI debe ser un número de 8 dígitos.");
       return;
     }
 
@@ -96,34 +131,28 @@ export default function NuevoPrestamo() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cedula: dni,
+          cedula: searchTerm,
           nombre: nuevoCliente.nombre,
           telefono: nuevoCliente.telefono,
           correo: nuevoCliente.correo,
+          direccion: nuevoCliente.direccion,
         }),
       });
 
       if (res.ok) {
         const clienteNuevo = await res.json();
-        setCliente(clienteNuevo);
+        seleccionarCliente(clienteNuevo);
         setShowModal(false);
-        setNuevoCliente({ nombre: "", telefono: "", correo: "" });
+        setNuevoCliente({
+          nombre: "",
+          telefono: "",
+          correo: "",
+          direccion: "",
+        });
         toast.success("Cliente registrado exitosamente");
       }
     } catch (error) {
       toast.error("Error al crear cliente");
-    }
-  };
-
-  // HABILITAR EDICIÓN DE INTERÉS
-  const habilitarEdicionInteres = () => {
-    const password = prompt("Ingrese contraseña para modificar interés:");
-    if (password === "admin123") {
-      // Cambia por tu contraseña
-      setInteresEditado(true);
-      toast.success("Interés habilitado para edición");
-    } else {
-      toast.error("Contraseña incorrecta");
     }
   };
 
@@ -165,7 +194,7 @@ export default function NuevoPrestamo() {
       if (res.ok) {
         toast.success(`✅ Préstamo de S/ ${montoNum} creado exitosamente`);
         setMonto("");
-        setDni("");
+        setSearchTerm("");
         setCliente(null);
       } else {
         toast.error(
@@ -181,55 +210,108 @@ export default function NuevoPrestamo() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <h2 className="text-2xl font-bold text-center text-gray-800">
-        Nuevo Préstamo
-      </h2>
-
-      {/* BUSCAR CLIENTE - BOTÓN VISIBLE SIEMPRE */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          DNI del Cliente
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
+    <div className="max-w-6xl mx-auto p-4 space-y-6">
+      {/* SECCIÓN 1: BÚSQUEDA Y SELECCIÓN DE CLIENTE */}
+      <div className="bg-white p-6 rounded-xl shadow-lg">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">
+          Paso 1: Buscar Cliente
+        </h3>
+        <div className="relative">
           <input
             type="text"
-            value={dni}
-            onChange={(e) => setDni(e.target.value)}
-            onKeyUp={(e) => e.key === "Enter" && buscarCliente()}
-            placeholder="12345678"
-            className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            maxLength={8}
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCliente(null); // Deseleccionar cliente al cambiar búsqueda
+            }}
+            placeholder="Buscar por Nombre o DNI..."
+            className="w-full p-4 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500"
+            disabled={!!cliente} // Deshabilitar si ya hay un cliente seleccionado
           />
-          <button
-            onClick={buscarCliente}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? "Buscando..." : "Buscar Cliente"}
-          </button>
-        </div>
+          {loading && <p className="text-sm text-gray-500 mt-2">Buscando...</p>}
 
-        {cliente && (
-          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-800 font-semibold">
-              ✓ Cliente: {cliente.nombre}
-            </p>
-            {cliente.telefono && (
-              <p className="text-green-600">Tel: {cliente.telefono}</p>
-            )}
-          </div>
-        )}
+          {/* Resultados de la búsqueda */}
+          {searchResults.length > 0 && !cliente && (
+            <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+              {searchResults.map((c) => (
+                <li
+                  key={c.id}
+                  onClick={() => seleccionarCliente(c)}
+                  className="p-3 hover:bg-blue-50 cursor-pointer border-b"
+                >
+                  <p className="font-semibold">{c.nombre}</p>
+                  <p className="text-sm text-gray-600">{c.cedula}</p>
+                </li>
+              ))}
+              <li
+                onClick={handleShowModal}
+                className="p-3 bg-gray-100 hover:bg-gray-200 cursor-pointer text-center font-semibold text-blue-600"
+              >
+                + Registrar Nuevo Cliente
+              </li>
+            </ul>
+          )}
+
+          {/* Cliente seleccionado */}
+          {cliente && (
+            <div className="mt-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg flex justify-between items-center">
+              <div>
+                <p className="font-bold text-green-800 text-lg">
+                  {cliente.nombre}
+                </p>
+                <p className="text-sm text-gray-600">DNI: {cliente.cedula}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setCliente(null);
+                  setSearchTerm("");
+                }}
+                className="text-red-500 hover:text-red-700 font-semibold"
+              >
+                Cambiar
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FORMULARIO DE PRÉSTAMO */}
       {cliente && (
-        <div className="bg-white p-6 rounded-lg shadow space-y-6">
-          <h3 className="text-lg font-semibold text-gray-800">
-            Detalles del Préstamo
+        <div className="bg-white p-6 rounded-xl shadow-lg space-y-6">
+          <h3 className="text-xl font-bold text-gray-800">
+            Paso 2: Detalles del Préstamo
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* TIPO DE PRÉSTAMO */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de Préstamo
+            </label>
+            <div className="flex rounded-lg border p-1 bg-gray-100">
+              <button
+                onClick={() => setTipoPrestamo("diario")}
+                className={`flex-1 p-2 rounded-md font-semibold transition ${
+                  tipoPrestamo === "diario"
+                    ? "bg-white shadow text-blue-600"
+                    : "text-gray-600"
+                }`}
+              >
+                Diario
+              </button>
+              <button
+                onClick={() => setTipoPrestamo("mensual")}
+                className={`flex-1 p-2 rounded-md font-semibold transition ${
+                  tipoPrestamo === "mensual"
+                    ? "bg-white shadow text-blue-600"
+                    : "text-gray-600"
+                }`}
+              >
+                Mensual
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* MONTO */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -246,44 +328,34 @@ export default function NuevoPrestamo() {
             </div>
 
             {/* DÍAS */}
-            <div>
+            <div className={tipoPrestamo === "mensual" ? "hidden" : ""}>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Días de Préstamo
               </label>
               <input
                 type="number"
                 value={dias}
-                onChange={(e) => setDias(parseInt(e.target.value) || 1)}
+                onChange={(e) =>
+                  handleDiasChange(parseInt(e.target.value) || 1)
+                }
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 min="1"
               />
             </div>
 
             {/* INTERÉS */}
-            <div className="relative">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Interés Diario (%)
-                <button
-                  type="button"
-                  onClick={habilitarEdicionInteres}
-                  className="ml-2 text-xs text-blue-600 hover:text-blue-800"
-                >
-                  {interesEditado ? "✓ Editando" : "🔒 Modificar"}
-                </button>
+                Interés ({tipoPrestamo === "diario" ? "Diario" : "Mensual"}) %
               </label>
               <input
                 type="number"
                 value={interes}
                 onChange={(e) => setInteres(parseFloat(e.target.value) || 1)}
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                step="0.1"
-                min="0.1"
-                max="10"
-                disabled={!interesEditado}
+                step="0.5"
+                min="0"
               />
-              {!interesEditado && (
-                <div className="absolute inset-0 bg-gray-100 bg-opacity-50 rounded-lg cursor-not-allowed"></div>
-              )}
             </div>
 
             {/* FECHA INICIO */}
@@ -306,16 +378,15 @@ export default function NuevoPrestamo() {
               </label>
               <DatePicker
                 selected={fechaFin}
-                onChange={setFechaFin}
-                className="w-full p-3 border rounded-lg bg-gray-50"
+                onChange={handleFechaFinChange}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 dateFormat="dd/MM/yyyy"
-                readOnly
               />
             </div>
           </div>
 
           {/* RESUMEN DE PAGO */}
-          <div className="bg-gray-50 p-4 rounded-lg border">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-gray-800 mb-3">
               Resumen del Préstamo
             </h4>
@@ -326,19 +397,19 @@ export default function NuevoPrestamo() {
               </div>
               <div>
                 <p className="text-gray-600">Interés Total</p>
-                <p className="font-bold text-lg text-orange-600">
+                <p className="font-bold text-lg text-red-600">
                   S/ {interesTotal.toFixed(2)}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">Total a Pagar</p>
-                <p className="font-bold text-lg text-green-600">
+                <p className="font-bold text-lg text-emerald-600">
                   S/ {totalPagar.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-gray-600">Por Día</p>
-                <p className="font-bold text-lg">
+                <p className="text-gray-600">Pago por Día</p>
+                <p className="font-bold text-lg text-gray-700">
                   S/ {(totalPagar / dias).toFixed(2)}
                 </p>
               </div>
@@ -362,7 +433,7 @@ export default function NuevoPrestamo() {
           <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full">
             <h3 className="text-xl font-bold mb-3">Cliente No Encontrado</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Registrar nuevo cliente con DNI: <strong>{dni}</strong>
+              Registrar nuevo cliente con DNI: <strong>{searchTerm}</strong>
             </p>
 
             <div className="space-y-3">
@@ -394,6 +465,18 @@ export default function NuevoPrestamo() {
                 }
                 className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
+              <input
+                type="text"
+                placeholder="Dirección (opcional)"
+                value={nuevoCliente.direccion}
+                onChange={(e) =>
+                  setNuevoCliente({
+                    ...nuevoCliente,
+                    direccion: e.target.value,
+                  })
+                }
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -413,6 +496,9 @@ export default function NuevoPrestamo() {
           </div>
         </div>
       )}
+
+      {/* Tabla de préstamos paginados */}
+      <ListaPrestamosPaginados />
     </div>
   );
 }
