@@ -13,6 +13,8 @@ interface Cliente {
   telefono?: string;
   correo?: string;
   direccion?: string;
+  nacionalidad?: string;
+  tipoDocumento?: string;
 }
 
 export default function NuevoPrestamo() {
@@ -31,9 +33,12 @@ export default function NuevoPrestamo() {
   const [showModal, setShowModal] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: "",
+    cedula: "",
     telefono: "",
     correo: "",
     direccion: "",
+    nacionalidad: "Peruana",
+    tipoDocumento: "DNI",
   });
   const [loading, setLoading] = useState(false);
 
@@ -107,22 +112,13 @@ export default function NuevoPrestamo() {
   };
 
   const handleShowModal = () => {
-    if (searchTerm.length < 8 || isNaN(Number(searchTerm))) {
-      toast.error("Para crear un cliente, ingrese un DNI válido de 8 dígitos.");
-      return;
-    }
     setShowModal(true);
   };
 
   // CREAR CLIENTE NUEVO
   const crearCliente = async () => {
-    if (!nuevoCliente.nombre.trim()) {
-      toast.error("Nombre es requerido");
-      return;
-    }
-
-    if (searchTerm.length !== 8 || isNaN(Number(searchTerm))) {
-      toast.error("El DNI debe ser un número de 8 dígitos.");
+    if (!nuevoCliente.nombre?.trim() || !nuevoCliente.cedula?.trim()) {
+      toast.error("El Nombre y el DNI/Identificador son requeridos.");
       return;
     }
 
@@ -131,11 +127,7 @@ export default function NuevoPrestamo() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cedula: searchTerm,
-          nombre: nuevoCliente.nombre,
-          telefono: nuevoCliente.telefono,
-          correo: nuevoCliente.correo,
-          direccion: nuevoCliente.direccion,
+          ...nuevoCliente,
         }),
       });
 
@@ -145,9 +137,12 @@ export default function NuevoPrestamo() {
         setShowModal(false);
         setNuevoCliente({
           nombre: "",
+          cedula: "",
           telefono: "",
           correo: "",
           direccion: "",
+          nacionalidad: "Peruana",
+          tipoDocumento: "DNI",
         });
         toast.success("Cliente registrado exitosamente");
       }
@@ -225,31 +220,39 @@ export default function NuevoPrestamo() {
               setCliente(null); // Deseleccionar cliente al cambiar búsqueda
             }}
             placeholder="Buscar por Nombre o DNI..."
-            className="w-full p-4 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full p-4 pr-32 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500"
             disabled={!!cliente} // Deshabilitar si ya hay un cliente seleccionado
           />
           {loading && <p className="text-sm text-gray-500 mt-2">Buscando...</p>}
 
-          {/* Resultados de la búsqueda */}
-          {searchResults.length > 0 && !cliente && (
+          {/* Resultados de la búsqueda o botón para registrar */}
+          {!cliente && searchTerm.length >= 3 && !loading && (
             <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
-              {searchResults.map((c) => (
-                <li
-                  key={c.id}
-                  onClick={() => seleccionarCliente(c)}
-                  className="p-3 hover:bg-blue-50 cursor-pointer border-b"
-                >
-                  <p className="font-semibold">{c.nombre}</p>
-                  <p className="text-sm text-gray-600">{c.cedula}</p>
-                </li>
-              ))}
-              <li
-                onClick={handleShowModal}
-                className="p-3 bg-gray-100 hover:bg-gray-200 cursor-pointer text-center font-semibold text-blue-600"
-              >
-                + Registrar Nuevo Cliente
-              </li>
+              {searchResults.length > 0 ? (
+                searchResults.map((c) => (
+                  <li
+                    key={c.id}
+                    onClick={() => seleccionarCliente(c)}
+                    className="p-3 hover:bg-blue-50 cursor-pointer border-b"
+                  >
+                    <p className="font-semibold">{c.nombre}</p>
+                    <p className="text-sm text-gray-600">{c.cedula}</p>
+                  </li>
+                ))
+              ) : (
+                <p className="p-3 text-center text-gray-500">
+                  No se encontraron clientes.
+                </p>
+              )}
             </ul>
+          )}
+          {!cliente && (
+            <button
+              onClick={handleShowModal}
+              className="absolute top-1/2 right-4 -translate-y-1/2 bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold hover:bg-blue-200"
+            >
+              + Registrar Cliente
+            </button>
           )}
 
           {/* Cliente seleccionado */}
@@ -430,53 +433,98 @@ export default function NuevoPrestamo() {
       {/* MODAL CREAR CLIENTE NUEVO */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full">
-            <h3 className="text-xl font-bold mb-3">Cliente No Encontrado</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Registrar nuevo cliente con DNI: <strong>{searchTerm}</strong>
-            </p>
+          <div className="bg-white p-8 rounded-xl shadow-xl max-w-lg w-full">
+            <h3 className="text-2xl font-bold mb-6">Registrar Nuevo Cliente</h3>
 
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nombre completo *"
-                value={nuevoCliente.nombre}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
-                }
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <input
-                type="text"
-                placeholder="Teléfono (opcional)"
-                value={nuevoCliente.telefono}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
-                }
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="email"
-                placeholder="Correo (opcional)"
-                value={nuevoCliente.correo}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, correo: e.target.value })
-                }
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Dirección (opcional)"
-                value={nuevoCliente.direccion}
-                onChange={(e) =>
-                  setNuevoCliente({
-                    ...nuevoCliente,
-                    direccion: e.target.value,
-                  })
-                }
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Columna 1 */}
+              <div className="space-y-4">
+                <select
+                  value={nuevoCliente.tipoDocumento}
+                  onChange={(e) =>
+                    setNuevoCliente({
+                      ...nuevoCliente,
+                      tipoDocumento: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                >
+                  <option value="DNI">DNI</option>
+                  <option value="Pasaporte">Pasaporte</option>
+                  <option value="Carnet de Extranjería">
+                    Carnet de Extranjería
+                  </option>
+                  <option value="Otro">Otro</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Nombre completo *"
+                  value={nuevoCliente.nombre}
+                  onChange={(e) =>
+                    setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Teléfono"
+                  value={nuevoCliente.telefono}
+                  onChange={(e) =>
+                    setNuevoCliente({
+                      ...nuevoCliente,
+                      telefono: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                />
+                <input
+                  type="text"
+                  placeholder="Dirección"
+                  value={nuevoCliente.direccion}
+                  onChange={(e) =>
+                    setNuevoCliente({
+                      ...nuevoCliente,
+                      direccion: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                />
+              </div>
+              {/* Columna 2 */}
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="N° de Documento *"
+                  value={nuevoCliente.cedula}
+                  onChange={(e) =>
+                    setNuevoCliente({ ...nuevoCliente, cedula: e.target.value })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Nacionalidad"
+                  value={nuevoCliente.nacionalidad}
+                  onChange={(e) =>
+                    setNuevoCliente({
+                      ...nuevoCliente,
+                      nacionalidad: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                />
+                <input
+                  type="email"
+                  placeholder="Correo"
+                  value={nuevoCliente.correo}
+                  onChange={(e) =>
+                    setNuevoCliente({ ...nuevoCliente, correo: e.target.value })
+                  }
+                  className="w-full p-3 border rounded-lg"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">

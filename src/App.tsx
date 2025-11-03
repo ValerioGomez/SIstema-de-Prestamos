@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Login from "./components/Login";
 import Dashboard from "./components/prestamos/Dashboard";
 import NuevoPrestamo from "./components/prestamos/NuevoPrestamo";
+import GestionPagos from "./components/prestamos/GestionPagos";
 import ListaClientes from "./components/clientes/ListaClientes";
 import Reportes from "./components/reportes/Reportes";
 import Ajustes from "./components/ajustes/Ajustes";
@@ -13,6 +14,7 @@ import {
   FiBarChart2,
   FiLogOut,
   FiPlusCircle,
+  FiCreditCard,
   FiSettings,
   FiUser,
   FiChevronDown,
@@ -71,6 +73,11 @@ function App() {
       label: "Nuevo Préstamo",
       icon: <FiPlusCircle />,
     },
+    {
+      key: "pagos" as const,
+      label: "Gestión de Pagos",
+      icon: <FiCreditCard />,
+    },
     { key: "clientes" as const, label: "Clientes", icon: <FiUsers /> },
     { key: "reportes" as const, label: "Reportes", icon: <FiBarChart2 /> },
     { key: "ajustes" as const, label: "Ajustes", icon: <FiSettings /> },
@@ -105,7 +112,10 @@ function App() {
           {/* Logo y Título */}
           <div className="flex items-center gap-3 px-4 py-5 mb-6">
             <img src={logo} alt="Logo" className="h-10 w-10" />
-            <span className="text-xl font-bold">Sistema</span>
+            <div>
+              <span className="text-xl font-bold">Sistema de Préstamos</span>
+              <p className="text-xs text-slate-400">versión 1</p>
+            </div>
           </div>
 
           {/* Navegación Principal */}
@@ -179,6 +189,7 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-800">
                 {view === "dashboard" && "Panel Principal"}
                 {view === "nuevo" && "Nuevo Préstamo"}
+                {view === "pagos" && "Gestión de Pagos"}
                 {view === "clientes" && "Gestión de Clientes"}
                 {view === "reportes" && "Reportes y Estadísticas"}
                 {view === "ajustes" && "Ajustes del Sistema"}
@@ -200,6 +211,7 @@ function App() {
           {view === "dashboard" && <Dashboard />}
 
           {view === "nuevo" && <NuevoPrestamo />}
+          {view === "pagos" && <GestionPagos />}
           {view === "clientes" && <ListaClientes />}
           {view === "reportes" && <Reportes />}
           {view === "ajustes" && <Ajustes />}

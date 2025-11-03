@@ -21,6 +21,8 @@ interface ClienteDetallado extends Cliente {
   telefono: string | null;
   correo: string | null;
   direccion: string | null;
+  nacionalidad: string | null;
+  tipoDocumento: string | null;
   prestamos: any[]; // Simplificado para el ejemplo
 }
 
@@ -88,6 +90,8 @@ export default function ListaClientes() {
         telefono: "",
         correo: "",
         direccion: "",
+        nacionalidad: "Peruana",
+        tipoDocumento: "DNI",
       }
     );
     setShowEditModal(true);
@@ -279,7 +283,32 @@ export default function ListaClientes() {
             <h3 className="text-xl font-bold mb-4">
               {clienteActual.id ? "Editar Cliente" : "Nuevo Cliente"}
             </h3>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select
+                value={clienteActual.tipoDocumento || "DNI"}
+                onChange={(e) =>
+                  setClienteActual({
+                    ...clienteActual,
+                    tipoDocumento: e.target.value,
+                  })
+                }
+                className="w-full p-3 border rounded-lg"
+              >
+                <option value="DNI">DNI</option>
+                <option value="Pasaporte">Pasaporte</option>
+                <option value="Carnet de Extranjería">
+                  Carnet de Extranjería
+                </option>
+                <option value="Otro">Otro</option>
+              </select>
+              <input
+                value={clienteActual.cedula || ""}
+                onChange={(e) =>
+                  setClienteActual({ ...clienteActual, cedula: e.target.value })
+                }
+                placeholder="N° de Documento"
+                className="w-full p-3 border rounded-lg"
+              />
               <input
                 value={clienteActual.nombre || ""}
                 onChange={(e) =>

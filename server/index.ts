@@ -60,7 +60,15 @@ app.get("/api/clientes/dni/:dni", async (req, res) => {
 
 // CREAR CLIENTE
 app.post("/api/clientes", async (req, res) => {
-  const { cedula, nombre, telefono, correo, direccion } = req.body;
+  const {
+    cedula,
+    nombre,
+    telefono,
+    correo,
+    direccion,
+    nacionalidad,
+    tipoDocumento,
+  } = req.body;
   try {
     // Verificar si ya existe un cliente con la misma cédula
     const cedulaExistente = await prisma.cliente.findUnique({
@@ -85,7 +93,15 @@ app.post("/api/clientes", async (req, res) => {
     }
 
     const cliente = await prisma.cliente.create({
-      data: { cedula, nombre, telefono, correo: correo || null, direccion },
+      data: {
+        cedula,
+        nombre,
+        telefono,
+        correo: correo || null,
+        direccion,
+        nacionalidad,
+        tipoDocumento,
+      },
     });
     res.json(cliente);
   } catch (error) {
@@ -176,11 +192,19 @@ app.get("/api/clientes/:id", async (req, res) => {
 // ACTUALIZAR CLIENTE
 app.put("/api/clientes/:id", async (req, res) => {
   const { id } = req.params;
-  const { nombre, telefono, correo, direccion } = req.body;
+  const { nombre, telefono, correo, direccion, nacionalidad, tipoDocumento } =
+    req.body;
   try {
     const cliente = await prisma.cliente.update({
       where: { id },
-      data: { nombre, telefono, correo, direccion },
+      data: {
+        nombre,
+        telefono,
+        correo,
+        direccion,
+        nacionalidad,
+        tipoDocumento,
+      },
     });
     res.json(cliente);
   } catch (error) {
