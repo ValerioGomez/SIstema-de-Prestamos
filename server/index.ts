@@ -631,6 +631,29 @@ app.post("/api/prestamos/adelanto", async (req, res) => {
   }
 });
 
+// ===================== AJUSTES =====================
+
+// Simulación de almacenamiento en memoria para los ajustes
+let ajustesDelSistema = {
+  nombreEmpresa: "Mi Negocio de Préstamos",
+  direccion: "Av. Principal 123, Lima, Perú",
+  telefono: "987654321",
+  correo: "contacto@minegocio.com",
+  simboloMoneda: "S/",
+  interesDiarioDefecto: 1.0,
+};
+
+app.get("/api/ajustes", (req, res) => {
+  res.json(ajustesDelSistema);
+});
+
+app.post("/api/ajustes", (req, res) => {
+  const nuevosAjustes = req.body;
+  ajustesDelSistema = { ...ajustesDelSistema, ...nuevosAjustes };
+  console.log("⚙️ Ajustes actualizados:", ajustesDelSistema);
+  res.json({ success: true, message: "Ajustes guardados correctamente." });
+});
+
 // ===================== SEED DATABASE (PARA PRUEBAS) =====================
 app.post("/api/seed-database", async (req, res) => {
   console.log("🌱 Iniciando proceso de sembrado de base de datos...");
