@@ -7,9 +7,71 @@ datasource db {
   url      = "postgresql://neondb_owner:npg_0xLTQpZj4SVE@ep-empty-sound-ac9hf5ge-pooler.sa-east-1.aws.neon.tech/neondb?connect_timeout=15&sslmode=require"
 }
 
-// ===============================================
-// ENUMS
-// ===============================================
+model Usuario {
+  id            String     @id @default(cuid())
+  correo        String     @unique
+  contraseña   String
+  nombre        String
+  rol           RolUsuario @default(ADMIN)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+  prestamos     Prestamo[]
+
+  @@index([correo])
+  @@map("usuarios")
+}
+
+model Cliente {
+  id            String     @id @default(cuid())
+  nombre        String
+  correo        String?    @unique
+  telefono      String?
+  direccion     String?
+  cedula        String     @unique
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+  prestamos     Prestamo[]
+
+  @@index([cedula])
+  @@map("clientes")
+}
+
+model Prestamo {
+  id            String         @id @default(cuid())
+  clienteId     String
+  usuarioId     String
+  monto         Float
+  tasaInteres   Float
+  plazoMeses    Int
+  fechaInicio   DateTime
+  fechaFin      DateTime?
+  estado        EstadoPrestamo @default(ACTIVO)
+  notas         String?
+  creadoEn      DateTime       @default(now())
+  actualizadoEn DateTime       @updatedAt
+  pagos         Pago[]
+  cliente       Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
+
+  @@index([clienteId])
+  @@index([estado])
+  @@map("prestamos")
+}
+
+model Pago {
+  id               String   @id @default(cuid())
+  prestamoId       String
+  monto            Float
+  tipo             TipoPago
+  fechaPago        DateTime
+  fechaVencimiento DateTime
+  notas            String?
+  creadoEn         DateTime @default(now())
+  prestamo         Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+
+  @@index([prestamoId])
+  @@map("pagos")
+}
 
 enum EstadoPrestamo {
   ACTIVO
@@ -27,78 +89,4 @@ enum TipoPago {
 enum RolUsuario {
   ADMIN
   EMPLEADO
-}
-
-// ===============================================
-// TABLAS
-// ===============================================
-
-model Usuario {
-  id            String     @id @default(cuid())
-  correo        String     @unique
-  contraseña    String
-  nombre        String
-  rol           RolUsuario @default(ADMIN)
-  creadoEn      DateTime   @default(now())
-  actualizadoEn DateTime   @updatedAt
-
-  prestamos     Prestamo[]
-
-  @@map("usuarios")
-  @@index([correo])
-}
-
-model Cliente {
-  id             String    @id @default(cuid())
-  nombre         String
-  correo         String?   @unique
-  telefono       String?
-  direccion      String?
-  cedula         String    @unique
-  creadoEn       DateTime  @default(now())
-  actualizadoEn  DateTime  @updatedAt
-
-  prestamos      Prestamo[]
-
-  @@map("clientes")
-  @@index([cedula])
-}
-
-model Prestamo {
-  id              String         @id @default(cuid())
-  clienteId       String
-  usuarioId       String
-  monto           Float
-  tasaInteres     Float
-  plazoMeses      Int
-  fechaInicio     DateTime
-  fechaFin        DateTime?
-  estado          EstadoPrestamo @default(ACTIVO)
-  notas           String?
-  creadoEn        DateTime       @default(now())
-  actualizadoEn   DateTime       @updatedAt
-
-  cliente         Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  usuario         Usuario        @relation(fields: [usuarioId], references: [id])
-  pagos           Pago[]
-
-  @@map("prestamos")
-  @@index([clienteId])
-  @@index([estado])
-}
-
-model Pago {
-  id              String      @id @default(cuid())
-  prestamoId      String
-  monto           Float
-  tipo            TipoPago
-  fechaPago       DateTime
-  fechaVencimiento DateTime
-  notas           String?
-  creadoEn        DateTime    @default(now())
-
-  prestamo        Prestamo    @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
-
-  @@map("pagos")
-  @@index([prestamoId])
 }
