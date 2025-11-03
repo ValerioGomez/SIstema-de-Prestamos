@@ -481,6 +481,106 @@ app.get("/api/dashboard/stats", async (req, res) => {
   }
 });
 
+// ===================== REPORTES =====================
+
+// ESTADÍSTICAS GENERALES PARA EL DASHBOARD DE REPORTES
+app.get("/api/reportes/estadisticas", async (req, res) => {
+  try {
+    const totalPrestado = await prisma.prestamo.aggregate({
+      _sum: { monto: true },
+    });
+
+    const totalClientes = await prisma.cliente.count();
+
+    const prestamosActivos = await prisma.prestamo.count({
+      where: { estado: "ACTIVO" },
+    });
+
+    const prestamosPagados = await prisma.prestamo.count({
+      where: { estado: "PAGADO" },
+    });
+
+    const prestamosVencidos = await prisma.prestamo.count({
+      where: { estado: "ATRASADO" },
+    });
+
+    const totalPrestamos = await prisma.prestamo.count();
+    const tasaMorosidad =
+      totalPrestamos > 0 ? (prestamosVencidos / totalPrestamos) * 100 : 0;
+
+    // Placeholder para ingresos por intereses (requiere lógica más compleja)
+    const ingresosIntereses = 1250.5;
+
+    res.json({
+      montoTotalPrestado: totalPrestado._sum.monto || 0,
+      numeroClientes: totalClientes,
+      prestamosActivos,
+      prestamosPagados,
+      prestamosVencidos,
+      tasaMorosidad,
+      ingresosIntereses,
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas de reportes:", error);
+    res.status(500).json({ error: "Error al cargar las estadísticas" });
+  }
+});
+
+// DATOS PARA GRÁFICO DE PRÉSTAMOS POR MES
+app.get("/api/reportes/prestamos-mes", async (req, res) => {
+  try {
+    const data = await prisma.$queryRaw`
+      SELECT
+        to_char(p."fechaInicio", 'YYYY-MM') as mes,
+        COUNT(p.id)::int as cantidad,
+        SUM(p.monto) as capital
+      FROM "prestamos" p
+      GROUP BY mes
+      ORDER BY mes ASC
+      LIMIT 12;
+    `;
+    res.json(data);
+  } catch (error) {
+    console.error("Error al obtener préstamos por mes:", error);
+    res.status(500).json({ error: "Error al cargar datos del gráfico" });
+  }
+});
+
+// OBTENER TODOS LOS PRÉSTAMOS PARA REPORTES (CON FILTROS)
+app.get("/api/reportes/prestamos", async (req, res) => {
+  const { desde, hasta, estado } = req.query;
+
+  const where: any = {};
+
+  if (desde) {
+    where.fechaInicio = {
+      ...where.fechaInicio,
+      gte: new Date(desde as string),
+    };
+  }
+  if (hasta) {
+    // Agregamos 1 día y restamos 1 segundo para incluir todo el día 'hasta'
+    const hastaDate = new Date(hasta as string);
+    hastaDate.setDate(hastaDate.getDate() + 1);
+    hastaDate.setSeconds(hastaDate.getSeconds() - 1);
+    where.fechaInicio = { ...where.fechaInicio, lte: hastaDate };
+  }
+  if (estado && typeof estado === "string" && estado !== "TODOS") {
+    where.estado = estado;
+  }
+
+  try {
+    const prestamos = await prisma.prestamo.findMany({
+      where,
+      include: { cliente: true },
+      orderBy: { fechaInicio: "desc" },
+    });
+    res.json(prestamos);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener el reporte de préstamos" });
+  }
+});
+
 // ===================== ADELANTOS =====================
 app.post("/api/prestamos/adelanto", async (req, res) => {
   const { clienteId, monto, notas } = req.body;
