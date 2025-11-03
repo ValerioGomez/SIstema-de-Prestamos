@@ -109,3 +109,42 @@ app.post("/api/clientes", async (req, res) => {
     res.status(500).json({ error: "Error al crear cliente" });
   }
 });
+
+// En server/index.ts - RUTA CREAR PRÉSTAMO
+app.post("/api/prestamos", async (req, res) => {
+  const { clienteId, monto, tasaInteres = 1, fechaInicio, fechaFin } = req.body;
+
+  try {
+    // Verificar que el cliente existe
+    const cliente = await prisma.cliente.findUnique({
+      where: { id: clienteId },
+    });
+
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    const prestamo = await prisma.prestamo.create({
+      data: {
+        clienteId,
+        usuarioId: "admin-001", // Asegúrate que este usuario existe
+        monto: parseFloat(monto),
+        tasaInteres: parseFloat(tasaInteres),
+        plazoMeses: Math.ceil(
+          (new Date(fechaFin) - new Date(fechaInicio)) / (1000 * 60 * 60 * 24)
+        ), // Calcula días a meses
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: new Date(fechaFin),
+        estado: "ACTIVO",
+      },
+      include: { cliente: true },
+    });
+
+    res.json(prestamo);
+  } catch (error) {
+    console.error("Error detallado:", error);
+    res
+      .status(500)
+      .json({ error: "Error al crear préstamo: " + error.message });
+  }
+});
