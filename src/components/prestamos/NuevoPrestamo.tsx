@@ -67,7 +67,24 @@ export default function NuevoPrestamo() {
     }
   };
 
-  // CREAR CLIENTE NUEVO
+  // En NuevoPrestamo.tsx - actualizar la función
+  const cargarPrestamosRecientes = async () => {
+    try {
+      const res = await fetch("http://localhost:4000/api/prestamos/recientes");
+      if (res.ok) {
+        const data = await res.json();
+        // Ordenar por fecha de inicio (más nuevo primero)
+        const sortedData = data.sort(
+          (a: any, b: any) =>
+            new Date(b.fechaInicio).getTime() -
+            new Date(a.fechaInicio).getTime()
+        );
+        setPrestamosRecientes(sortedData);
+      }
+    } catch (error) {
+      console.error("Error cargar préstamos:", error);
+    }
+  }; // CREAR CLIENTE NUEVO
   const crearCliente = async () => {
     if (!nuevoCliente.nombre.trim()) {
       toast.error("Nombre es requerido");
