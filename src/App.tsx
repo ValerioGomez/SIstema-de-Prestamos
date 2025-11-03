@@ -31,6 +31,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Detectar si es móvil y ajustar sidebar
@@ -62,6 +63,21 @@ function App() {
     };
   }, [userMenuRef]);
 
+  // Hook para gestionar el modo oscuro
+  useEffect(() => {
+    const darkModeGuardado = localStorage.getItem("darkMode") === "true";
+    setIsDarkMode(darkModeGuardado);
+  }, []);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("darkMode", String(isDarkMode));
+  }, [isDarkMode]);
+
   if (!user) {
     return <Login onLogin={setUser} />;
   }
@@ -88,7 +104,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900/50 flex">
       {/* OVERLAY PARA MÓVIL */}
       {isMobile && sidebarOpen && (
         <div
@@ -100,7 +116,7 @@ function App() {
       {/* SIDEBAR */}
       <div
         className={`
-        bg-slate-900 text-white
+        bg-slate-900 text-white dark:border-r dark:border-slate-800
         transition-all duration-300 ease-in-out
         fixed md:relative z-30
         ${sidebarOpen ? "w-64" : "w-0 md:w-0"}
@@ -108,85 +124,83 @@ function App() {
         flex flex-col
       `}
       >
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Logo y Título */}
-          <div className="flex items-center gap-3 px-4 py-5 mb-6">
-            <img src={logo} alt="Logo" className="h-10 w-10" />
-            <div>
-              <span className="text-xl font-bold">Sistema de Préstamos</span>
-              <p className="text-xs text-slate-400">versión 1</p>
-            </div>
+        {/* Logo y Título */}
+        <div className="flex items-center gap-3 px-4 py-5 mb-6 flex-shrink-0">
+          <img src={logo} alt="Logo" className="h-10 w-10" />
+          <div className="flex flex-col">
+            <span className="text-xl font-bold">Sistema de Préstamos</span>
+            <p className="text-xs text-slate-400">versión 1</p>
           </div>
+        </div>
 
-          {/* Navegación Principal */}
-          <nav className="flex-1 px-4 space-y-2">
-            {navigationItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => {
-                  setView(item.key);
-                  if (isMobile) setSidebarOpen(false);
-                }}
-                className={`w-full flex items-center space-x-4 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  view === item.key
-                    ? "bg-indigo-600 text-white shadow-lg"
-                    : "text-gray-400 hover:bg-slate-700/50 hover:text-white"
-                }`}
-              >
-                <span className="text-xl">{item.icon}</span>
-                <span className="font-semibold">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-
-          {/* Perfil de Usuario y Menú Desplegable */}
-          <div
-            className="border-t border-slate-700 p-4 relative"
-            ref={userMenuRef}
-          >
-            {/* Menú desplegable de Logout */}
-            {showUserMenu && (
-              <div className="absolute bottom-full mb-2 w-full left-0 bg-slate-800 rounded-lg shadow-xl overflow-hidden">
-                <button
-                  onClick={() => setUser(null)}
-                  className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors duration-200"
-                >
-                  <FiLogOut className="text-lg" />
-                  <span className="font-semibold">Cerrar Sesión</span>
-                </button>
-              </div>
-            )}
-
-            {/* Botón para abrir el menú */}
+        {/* Navegación Principal */}
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
+          {navigationItems.map((item) => (
             <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-700/50 transition-colors duration-200"
+              key={item.key}
+              onClick={() => {
+                setView(item.key);
+                if (isMobile) setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center space-x-4 px-4 py-3 rounded-lg transition-all duration-200 ${
+                view === item.key
+                  ? "bg-indigo-600 text-white shadow-lg"
+                  : "text-gray-400 hover:bg-slate-700/50 hover:text-white"
+              }`}
             >
-              <div>
-                <p className="font-semibold">{user.nombre}</p>
-                <p className="text-sm text-gray-400 capitalize">
-                  {user.rol?.toLowerCase()}
-                </p>
-              </div>
-              {showUserMenu ? <FiChevronDown /> : <FiChevronUp />}
+              <span className="text-xl">{item.icon}</span>
+              <span className="font-semibold">{item.label}</span>
             </button>
-          </div>
+          ))}
+        </nav>
+
+        {/* Perfil de Usuario y Menú Desplegable */}
+        <div
+          className="border-t border-slate-700 p-4 relative flex-shrink-0"
+          ref={userMenuRef}
+        >
+          {/* Menú desplegable de Logout */}
+          {showUserMenu && (
+            <div className="absolute bottom-full mb-2 w-full left-0 bg-slate-800 rounded-lg shadow-xl overflow-hidden">
+              <button
+                onClick={() => setUser(null)}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors duration-200"
+              >
+                <FiLogOut className="text-lg" />
+                <span className="font-semibold">Cerrar Sesión</span>
+              </button>
+            </div>
+          )}
+
+          {/* Botón para abrir el menú */}
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="w-full flex justify-between items-center text-left p-2 rounded-lg hover:bg-slate-700/50 transition-colors duration-200"
+          >
+            <div>
+              <p className="font-semibold">{user.nombre}</p>
+              <p className="text-sm text-gray-400 capitalize">
+                {user.rol?.toLowerCase()}
+              </p>
+            </div>
+            {showUserMenu ? <FiChevronDown /> : <FiChevronUp />}
+          </button>
         </div>
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* HEADER SUPERIOR */}
-        <header className="bg-white shadow-sm border-b p-4">
+        <header className="bg-white dark:bg-slate-900 dark:border-slate-800 shadow-sm border-b p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
                 onClick={toggleSidebar}
-                className="p-2 rounded-lg hover:bg-gray-100 mr-4 md:hidden"
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 mr-4 md:hidden"
               >
                 {sidebarOpen ? <FiX /> : <FiMenu />}
               </button>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
                 {view === "dashboard" && "Panel Principal"}
                 {view === "nuevo" && "Nuevo Préstamo"}
                 {view === "pagos" && "Gestión de Pagos"}
@@ -195,7 +209,7 @@ function App() {
                 {view === "ajustes" && "Ajustes del Sistema"}
               </h1>
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {new Date().toLocaleDateString("es-ES", {
                 weekday: "long",
                 year: "numeric",
@@ -207,14 +221,16 @@ function App() {
         </header>
 
         {/* CONTENIDO DINÁMICO */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto bg-gray-50 dark:bg-slate-900/50">
           {view === "dashboard" && <Dashboard />}
 
           {view === "nuevo" && <NuevoPrestamo />}
           {view === "pagos" && <GestionPagos />}
           {view === "clientes" && <ListaClientes />}
           {view === "reportes" && <Reportes />}
-          {view === "ajustes" && <Ajustes />}
+          {view === "ajustes" && (
+            <Ajustes isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          )}
         </main>
       </div>
     </div>

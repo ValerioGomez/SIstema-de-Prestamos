@@ -633,24 +633,48 @@ app.post("/api/prestamos/adelanto", async (req, res) => {
 
 // ===================== AJUSTES =====================
 
-// Simulación de almacenamiento en memoria para los ajustes
-let ajustesDelSistema = {
-  nombreEmpresa: "Mi Negocio de Préstamos",
-  direccion: "Av. Principal 123, Lima, Perú",
-  telefono: "987654321",
-  correo: "contacto@minegocio.com",
-  simboloMoneda: "S/",
-  interesDiarioDefecto: 1.0,
-};
+app.get("/api/ajustes", async (req, res) => {
+  try {
+    let ajustes = await prisma.ajustes.findUnique({
+      where: { id: "singleton" },
+    });
 
-app.get("/api/ajustes", (req, res) => {
-  res.json(ajustesDelSistema);
+    if (!ajustes) {
+      // Si no existen ajustes, crea unos por defecto
+      ajustes = await prisma.ajustes.create({
+        data: {
+          id: "singleton",
+          nombreEmpresa: "Mi Negocio de Préstamos",
+          direccion: "Av. Principal 123, Lima, Perú",
+          telefono: "987654321",
+          correo: "contacto@minegocio.com",
+        },
+      });
+    }
+    res.json(ajustes);
+  } catch (error) {
+    console.error("Error al obtener ajustes:", error);
+    res.status(500).json({ error: "Error al cargar los ajustes." });
+  }
 });
 
-app.post("/api/ajustes", (req, res) => {
+app.post("/api/ajustes", async (req, res) => {
   const nuevosAjustes = req.body;
-  ajustesDelSistema = { ...ajustesDelSistema, ...nuevosAjustes };
-  console.log("⚙️ Ajustes actualizados:", ajustesDelSistema);
+  // No queremos actualizar el ID
+  delete nuevosAjustes.id;
+
+  // Asegurarse de que los campos numéricos se guarden como números
+  if (nuevosAjustes.interesDiarioDefecto) {
+    nuevosAjustes.interesDiarioDefecto = parseFloat(
+      nuevosAjustes.interesDiarioDefecto
+    );
+  }
+
+  const ajustesActualizados = await prisma.ajustes.update({
+    where: { id: "singleton" },
+    data: nuevosAjustes,
+  });
+  console.log("⚙️ Ajustes actualizados:", ajustesActualizados);
   res.json({ success: true, message: "Ajustes guardados correctamente." });
 });
 
@@ -661,10 +685,24 @@ app.post("/api/seed-database", async (req, res) => {
     // 1. Limpiar datos existentes en el orden correcto
     await prisma.pago.deleteMany({});
     await prisma.prestamo.deleteMany({});
+    await prisma.ajustes.deleteMany({});
     await prisma.cliente.deleteMany({});
+    await prisma.usuario.deleteMany({});
     console.log("🗑️ Base de datos limpiada.");
 
-    // 2. Crear clientes aleatorios
+    // 2. Crear usuario administrador
+    await prisma.usuario.create({
+      data: {
+        id: "admin-001",
+        correo: "admin@prestamos.com",
+        contraseña: "123456", // Corregido para usar 'ñ'
+        nombre: "Administrador",
+        rol: "ADMIN",
+      },
+    });
+    console.log("👤 Creado usuario administrador.");
+
+    // 3. Crear clientes aleatorios
     const nombres = [
       "Juan",
       "Maria",
@@ -691,7 +729,7 @@ app.post("/api/seed-database", async (req, res) => {
     ];
 
     const clientesCreados = [];
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 15; i++) {
       const cliente = await prisma.cliente.create({
         data: {
           nombre: `${nombres[Math.floor(Math.random() * nombres.length)]} ${
@@ -703,9 +741,9 @@ app.post("/api/seed-database", async (req, res) => {
       });
       clientesCreados.push(cliente);
     }
-    console.log(`👤 Creados ${clientesCreados.length} clientes.`);
+    console.log(` Creados ${clientesCreados.length} clientes.`);
 
-    // 3. Crear préstamos y pagos aleatorios para cada cliente
+    // 4. Crear préstamos y pagos aleatorios para cada cliente
     for (const cliente of clientesCreados) {
       const numPrestamos = Math.floor(Math.random() * 3) + 1; // 1 a 3 préstamos por cliente
 

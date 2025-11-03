@@ -28,6 +28,8 @@ model Cliente {
   telefono      String?
   direccion     String?
   cedula        String     @unique
+  nacionalidad  String?
+  tipoDocumento String?
   creadoEn      DateTime   @default(now())
   actualizadoEn DateTime   @updatedAt
   prestamos     Prestamo[]
@@ -71,6 +73,19 @@ model Pago {
 
   @@index([prestamoId])
   @@map("pagos")
+}
+
+model Ajustes {
+  id                   String  @id @default("singleton")
+  nombreEmpresa        String
+  direccion            String?
+  telefono             String?
+  correo               String?
+  simboloMoneda        String  @default("S/")
+  interesDiarioDefecto Float   @default(1.0)
+  creadoEn             DateTime @default(now())
+  actualizadoEn        DateTime @updatedAt
+  @@map("ajustes")
 }
 
 enum EstadoPrestamo {

@@ -10,7 +10,12 @@ interface AjustesSistema {
   interesDiarioDefecto: number;
 }
 
-export default function Ajustes() {
+interface AjustesProps {
+  isDarkMode: boolean;
+  setIsDarkMode: (value: boolean) => void;
+}
+
+export default function Ajustes({ isDarkMode, setIsDarkMode }: AjustesProps) {
   const [ajustes, setAjustes] = useState<AjustesSistema>({
     nombreEmpresa: "",
     direccion: "",
@@ -96,8 +101,8 @@ export default function Ajustes() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="bg-white p-8 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
           Información de la Empresa
         </h2>
         {loading ? (
@@ -109,21 +114,21 @@ export default function Ajustes() {
               value={ajustes.nombreEmpresa}
               onChange={handleInputChange}
               placeholder="Nombre de la empresa"
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
             />
             <input
               name="direccion"
               value={ajustes.direccion}
               onChange={handleInputChange}
               placeholder="Dirección"
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
             />
             <input
               name="telefono"
               value={ajustes.telefono}
               onChange={handleInputChange}
               placeholder="Teléfono de contacto"
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
             />
             <input
               name="correo"
@@ -131,14 +136,66 @@ export default function Ajustes() {
               value={ajustes.correo}
               onChange={handleInputChange}
               placeholder="Correo de contacto"
-              className="w-full p-3 border rounded-lg"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
             />
           </div>
         )}
       </div>
 
-      <div className="bg-white p-8 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+          Ajustes de Préstamos
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Símbolo de Moneda
+            </label>
+            <input
+              name="simboloMoneda"
+              value={ajustes.simboloMoneda}
+              onChange={handleInputChange}
+              placeholder="S/"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Interés Diario por Defecto (%)
+            </label>
+            <input
+              name="interesDiarioDefecto"
+              type="number"
+              value={ajustes.interesDiarioDefecto}
+              onChange={handleInputChange}
+              placeholder="1.0"
+              className="w-full p-3 border dark:border-slate-600 bg-transparent dark:text-white rounded-lg"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+          Apariencia
+        </h2>
+        <div className="flex items-center justify-between ">
+          <p className="font-medium dark:text-gray-200">Modo Oscuro</p>
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`w-14 h-8 rounded-full p-1 flex items-center transition-colors duration-300 ${
+              isDarkMode
+                ? "bg-indigo-600 justify-end"
+                : "bg-gray-300 justify-start"
+            }`}
+          >
+            <span className="w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300"></span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
           Acciones del Sistema
         </h2>
         <div className="border border-red-200 bg-red-50 p-4 rounded-lg">
