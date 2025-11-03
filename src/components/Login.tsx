@@ -50,7 +50,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
           </div>
           <div>
             <p className="text-sm text-indigo-200">
-              © 2025 Mi Empresa. Todos los derechos reservados.
+              © 2025 SamsamTec. Todos los derechos reservados.
             </p>
             <p className="text-sm text-indigo-200 mt-1">
               Desarrollado por:{" "}
