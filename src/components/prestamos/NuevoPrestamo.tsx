@@ -110,21 +110,27 @@ export default function NuevoPrestamo() {
     }
   };
 
-  // CREAR PRÉSTAMO
   const crearPrestamo = async () => {
-    if (!cliente) {
-      toast.error("Seleccione un cliente");
+    if (!cliente || !monto) {
+      toast.error("Complete todos los campos");
       return;
     }
-    if (!monto || montoNum <= 0) {
-      toast.error("Ingrese un monto válido");
-      return;
-    }
+
+    console.log("📤 Enviando datos al servidor:", {
+      clienteId: cliente.id,
+      monto: montoNum,
+      tasaInteres: interes,
+      fechaInicio: fechaInicio.toISOString(),
+      fechaFin: fechaFin.toISOString(),
+    });
 
     try {
       const res = await fetch("http://localhost:4000/api/prestamos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           clienteId: cliente.id,
           monto: montoNum,
@@ -134,24 +140,26 @@ export default function NuevoPrestamo() {
         }),
       });
 
-      if (res.ok) {
-        const prestamoCreado = await res.json();
-        toast.success(`Préstamo de S/ ${montoNum} creado exitosamente`);
+      console.log("📥 Respuesta del servidor:", res.status, res.statusText);
 
-        // Reset form
+      const responseData = await res.json();
+      console.log("📦 Datos de respuesta:", responseData);
+
+      if (res.ok) {
+        toast.success(`✅ Préstamo de S/ ${montoNum} creado exitosamente`);
         setMonto("");
         setDni("");
         setCliente(null);
-        setInteres(1);
-        setInteresEditado(false);
-        setDias(2);
-        setFechaInicio(new Date());
       } else {
-        const error = await res.json();
-        toast.error(error.error || "Error al crear préstamo");
+        toast.error(
+          `❌ Error: ${
+            responseData.error || responseData.mensaje || "Error desconocido"
+          }`
+        );
       }
     } catch (error) {
-      toast.error("Error de conexión con el servidor");
+      console.error("💥 Error de conexión:", error);
+      toast.error("🔌 Error de conexión con el servidor");
     }
   };
 

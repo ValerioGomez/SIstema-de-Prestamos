@@ -1,9 +1,9 @@
-// server/index.ts
+// server/index.ts - VERSIÓN COMPLETA Y CORREGIDA
 import express from "express";
 import cors from "cors";
 import { prisma } from "../src/lib/prisma";
 
-const app = express(); // ← ESTO FALTABA
+const app = express(); // ¡ESTA LÍNEA ES CRÍTICA!
 
 app.use(cors());
 app.use(express.json());
@@ -41,11 +41,6 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-const PORT = 4000;
-app.listen(PORT, () => {
-  console.log(`API corriendo en http://localhost:${PORT}`);
-});
-
 // BUSCAR CLIENTE POR DNI
 app.get("/api/clientes/dni/:dni", async (req, res) => {
   const { dni } = req.params;
@@ -60,44 +55,7 @@ app.get("/api/clientes/dni/:dni", async (req, res) => {
   }
 });
 
-// CREAR PRÉSTAMO
-app.post("/api/prestamos", async (req, res) => {
-  const { clienteId, monto, tasaInteres = 1, fechaInicio, fechaFin } = req.body;
-  try {
-    const prestamo = await prisma.prestamo.create({
-      data: {
-        clienteId,
-        usuarioId: "admin-001", // Cambiar por usuario logueado
-        monto: parseFloat(monto),
-        tasaInteres: parseFloat(tasaInteres),
-        plazoMeses: 0, // No usado
-        fechaInicio: new Date(fechaInicio),
-        fechaFin: new Date(fechaFin),
-        estado: "ACTIVO",
-      },
-      include: { cliente: true },
-    });
-    res.json(prestamo);
-  } catch (error) {
-    res.status(500).json({ error: "Error al crear préstamo" });
-  }
-});
-
-// LISTAR PRÉSTAMOS RECIENTES
-app.get("/api/prestamos/recientes", async (req, res) => {
-  try {
-    const prestamos = await prisma.prestamo.findMany({
-      orderBy: { fechaInicio: "desc" },
-      take: 10,
-      include: { cliente: true },
-    });
-    res.json(prestamos);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener préstamos" });
-  }
-});
-
-// AGREGAR AL FINAL DE server/index.ts
+// CREAR CLIENTE
 app.post("/api/clientes", async (req, res) => {
   const { cedula, nombre, telefono, correo } = req.body;
   try {
@@ -106,12 +64,16 @@ app.post("/api/clientes", async (req, res) => {
     });
     res.json(cliente);
   } catch (error) {
+    console.error("Error crear cliente:", error);
     res.status(500).json({ error: "Error al crear cliente" });
   }
 });
 
-// En server/index.ts - RUTA CREAR PRÉSTAMO
+// CREAR PRÉSTAMO - VERSIÓN SIMPLIFICADA Y SEGURA
 app.post("/api/prestamos", async (req, res) => {
+  console.log("🎯 SOLICITUD RECIBIDA EN /api/prestamos");
+  console.log("📦 Body:", req.body);
+
   const { clienteId, monto, tasaInteres = 1, fechaInicio, fechaFin } = req.body;
 
   try {
@@ -121,30 +83,77 @@ app.post("/api/prestamos", async (req, res) => {
     });
 
     if (!cliente) {
+      console.log("❌ Cliente no encontrado:", clienteId);
       return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
+    console.log("✅ Cliente encontrado:", cliente.nombre);
+
+    // Calcular días entre fechas
+    const diffTime =
+      new Date(fechaFin).getTime() - new Date(fechaInicio).getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // CREAR PRÉSTAMO
     const prestamo = await prisma.prestamo.create({
       data: {
-        clienteId,
+        clienteId: clienteId,
         usuarioId: "admin-001", // Asegúrate que este usuario existe
         monto: parseFloat(monto),
         tasaInteres: parseFloat(tasaInteres),
-        plazoMeses: Math.ceil(
-          (new Date(fechaFin) - new Date(fechaInicio)) / (1000 * 60 * 60 * 24)
-        ), // Calcula días a meses
+        plazoMeses: diffDays,
         fechaInicio: new Date(fechaInicio),
         fechaFin: new Date(fechaFin),
         estado: "ACTIVO",
       },
-      include: { cliente: true },
+      include: {
+        cliente: {
+          select: { nombre: true, cedula: true },
+        },
+      },
     });
 
-    res.json(prestamo);
-  } catch (error) {
-    console.error("Error detallado:", error);
-    res
-      .status(500)
-      .json({ error: "Error al crear préstamo: " + error.message });
+    console.log("✅ PRÉSTAMO CREADO EXITOSAMENTE");
+    console.log("ID:", prestamo.id);
+    console.log("Monto:", prestamo.monto);
+
+    res.json({
+      success: true,
+      message: "Préstamo creado exitosamente",
+      prestamo: prestamo,
+    });
+  } catch (error: any) {
+    console.error("❌ ERROR al crear préstamo:");
+    console.error("Mensaje:", error.message);
+    console.error("Código:", error.code);
+
+    res.status(500).json({
+      error: "Error al crear préstamo",
+      detalle: error.message,
+    });
   }
+});
+
+// LISTAR PRÉSTAMOS RECIENTES
+app.get("/api/prestamos/recientes", async (req, res) => {
+  try {
+    const prestamos = await prisma.prestamo.findMany({
+      orderBy: { fechaInicio: "desc" },
+      take: 10,
+      include: {
+        cliente: {
+          select: { nombre: true, cedula: true },
+        },
+      },
+    });
+    res.json(prestamos);
+  } catch (error) {
+    console.error("Error obtener préstamos:", error);
+    res.status(500).json({ error: "Error al obtener préstamos" });
+  }
+});
+
+const PORT = 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 API corriendo en http://localhost:${PORT}`);
 });
