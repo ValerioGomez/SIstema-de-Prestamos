@@ -96,3 +96,16 @@ app.get("/api/prestamos/recientes", async (req, res) => {
     res.status(500).json({ error: "Error al obtener préstamos" });
   }
 });
+
+// AGREGAR AL FINAL DE server/index.ts
+app.post("/api/clientes", async (req, res) => {
+  const { cedula, nombre, telefono, correo } = req.body;
+  try {
+    const cliente = await prisma.cliente.create({
+      data: { cedula, nombre, telefono, correo },
+    });
+    res.json(cliente);
+  } catch (error) {
+    res.status(500).json({ error: "Error al crear cliente" });
+  }
+});

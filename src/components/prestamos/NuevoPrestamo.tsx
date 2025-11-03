@@ -1,184 +1,273 @@
 // src/components/prestamos/NuevoPrestamo.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
+import toast from "react-hot-toast";
+
+interface Cliente {
+  id: string;
+  nombre: string;
+  cedula: string;
+  telefono?: string;
+  correo?: string;
+}
 
 export default function NuevoPrestamo() {
   const [dni, setDni] = useState("");
-  const [cliente, setCliente] = useState<any>(null);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [dias, setDias] = useState(2);
   const [monto, setMonto] = useState("");
   const [fechaInicio, setFechaInicio] = useState(new Date());
-  const [fechaFin, setFechaFin] = useState(new Date(Date.now() + 86400000)); // mañana
-  const [interes, setInteres] = useState("1");
+  const [fechaFin, setFechaFin] = useState(addDays(new Date(), 2));
+  const [showModal, setShowModal] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({
+    nombre: "",
+    telefono: "",
+    correo: "",
+  });
   const [loading, setLoading] = useState(false);
-  const [prestamosRecientes, setPrestamosRecientes] = useState([]);
+  const [sugerencias, setSugerencias] = useState<Cliente[]>([]);
 
-  // BUSCAR CLIENTE
+  // ACTUALIZAR FECHA FIN EN TIEMPO REAL
+  useEffect(() => {
+    setFechaFin(addDays(fechaInicio, dias));
+  }, [fechaInicio, dias]);
+
+  // BUSCAR CLIENTE POR DNI
   const buscarCliente = async () => {
-    if (dni.length < 8) return;
+    if (dni.length < 8) {
+      setSugerencias([]);
+      return;
+    }
     setLoading(true);
-    const res = await fetch(`http://localhost:4000/api/clientes/dni/${dni}`);
-    const data = await res.json();
-    setCliente(data);
-    setLoading(false);
+    try {
+      const res = await fetch(`http://localhost:4000/api/clientes/dni/${dni}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setCliente(data);
+          setSugerencias([]);
+          toast.success("Cliente encontrado");
+        } else {
+          setCliente(null);
+          toast.error("Cliente no encontrado");
+          setShowModal(true);
+        }
+      } else {
+        setSugerencias([]);
+      }
+    } catch (error) {
+      toast.error("Error de conexión");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // CREAR CLIENTE NUEVO
+  const crearCliente = async () => {
+    if (!nuevoCliente.nombre || !dni) return;
+    try {
+      const res = await fetch("http://localhost:4000/api/clientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cedula: dni,
+          nombre: nuevoCliente.nombre,
+          telefono: nuevoCliente.telefono,
+          correo: nuevoCliente.correo,
+        }),
+      });
+      if (res.ok) {
+        const clienteNuevo = await res.json();
+        setCliente(clienteNuevo);
+        setShowModal(false);
+        toast.success("Cliente creado");
+      }
+    } catch (error) {
+      toast.error("Error al crear cliente");
+    }
   };
 
   // CREAR PRÉSTAMO
   const crearPrestamo = async () => {
     if (!cliente || !monto) return;
-    const res = await fetch("http://localhost:4000/api/prestamos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clienteId: cliente.id,
-        monto,
-        tasaInteres: interes,
-        fechaInicio: fechaInicio.toISOString(),
-        fechaFin: fechaFin.toISOString(),
-      }),
-    });
-    if (res.ok) {
-      alert("Préstamo creado");
-      cargarPrestamosRecientes();
+    try {
+      const res = await fetch("http://localhost:4000/api/prestamos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clienteId: cliente.id,
+          monto: parseFloat(monto),
+          tasaInteres: 1,
+          fechaInicio: fechaInicio.toISOString(),
+          fechaFin: fechaFin.toISOString(),
+        }),
+      });
+      if (res.ok) {
+        toast.success("Préstamo creado con éxito");
+        setMonto("");
+        setDni("");
+        setCliente(null);
+      }
+    } catch (error) {
+      toast.error("Error al crear préstamo");
     }
-  };
-
-  // CARGAR PRÉSTAMOS RECIENTES
-  const cargarPrestamosRecientes = async () => {
-    const res = await fetch("http://localhost:4000/api/prestamos/recientes");
-    const data = await res.json();
-    setPrestamosRecientes(data);
   };
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <h2 className="text-2xl font-bold text-center">Nuevo Préstamo</h2>
+      <h2 className="text-2xl font-bold text-center text-gray-800">
+        Nuevo Préstamo
+      </h2>
 
-      {/* BUSCAR CLIENTE */}
+      {/* BUSCAR DNI */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <label className="block text-sm font-medium">DNI del Cliente</label>
-        <div className="flex gap-2 mt-1">
-          <input
-            type="text"
-            value={dni}
-            onChange={(e) => setDni(e.target.value)}
-            placeholder="12345678"
-            className="flex-1 p-2 border rounded"
-          />
-          <button
-            onClick={buscarCliente}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            {loading ? "Buscando..." : "Buscar"}
-          </button>
-        </div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          DNI del Cliente
+        </label>
+        <input
+          type="text"
+          value={dni}
+          onChange={(e) => setDni(e.target.value)}
+          onKeyUp={(e) => e.key === "Enter" && buscarCliente()}
+          placeholder="12345678"
+          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+        {sugerencias.length > 0 && (
+          <div className="mt-2 border rounded-lg bg-white">
+            {sugerencias.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => {
+                  setCliente(c);
+                  setDni(c.cedula);
+                  setSugerencias([]);
+                }}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+              >
+                {c.nombre} - {c.cedula}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* FORMULARIO */}
       {cliente && (
-        <div className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="bg-white p-6 rounded-lg shadow space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label>Cliente</label>
-              <p className="font-semibold">{cliente.nombre}</p>
+              <label className="block text-sm font-medium">Cliente</label>
+              <p className="font-bold text-lg">{cliente.nombre}</p>
             </div>
             <div>
-              <label>Monto (S/)</label>
+              <label className="block text-sm font-medium">Monto (S/)</label>
               <input
                 type="number"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
-                className="w-full p-2 border rounded"
-                placeholder="1000"
+                className="w-full p-3 border rounded-lg"
+                placeholder="500"
               />
             </div>
             <div>
-              <label>Fecha Inicio</label>
+              <label className="block text-sm font-medium">Días</label>
+              <input
+                type="number"
+                value={dias}
+                onChange={(e) => setDias(parseInt(e.target.value) || 1)}
+                className="w-full p-3 border rounded-lg"
+                min="1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Fecha Inicio</label>
               <DatePicker
                 selected={fechaInicio}
                 onChange={setFechaInicio}
-                className="w-full p-2 border rounded"
+                className="w-full p-3 border rounded-lg"
                 dateFormat="dd/MM/yyyy"
               />
             </div>
             <div>
-              <label>Fecha Fin</label>
+              <label className="block text-sm font-medium">Fecha Fin</label>
               <DatePicker
                 selected={fechaFin}
                 onChange={setFechaFin}
-                className="w-full p-2 border rounded"
+                className="w-full p-3 border rounded-lg bg-gray-50"
                 dateFormat="dd/MM/yyyy"
+                readOnly
               />
             </div>
             <div>
-              <label>Interés Diario (%)</label>
-              <input
-                type="number"
-                value={interes}
-                onChange={(e) => setInteres(e.target.value)}
-                className="w-full p-2 border rounded"
-                defaultValue={1}
-              />
+              <label className="block text-sm font-medium">Interés Total</label>
+              <p className="text-xl font-bold text-emerald-600">
+                S/ {(parseFloat(monto) * 0.01 * dias).toFixed(2)}
+              </p>
             </div>
           </div>
+
           <button
             onClick={crearPrestamo}
-            className="w-full py-3 bg-emerald-600 text-white rounded font-semibold hover:bg-emerald-700"
+            className="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition"
           >
-            Crear Préstamo
+            Confirmar Préstamo
           </button>
         </div>
       )}
 
-      {/* REPORTE RECIENTE */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-3">Préstamos Recientes</h3>
-        <button
-          onClick={cargarPrestamosRecientes}
-          className="mb-3 px-4 py-1 bg-gray-600 text-white rounded text-sm"
-        >
-          Actualizar
-        </button>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 text-left">Cliente</th>
-                <th className="p-2 text-left">Monto</th>
-                <th className="p-2 text-left">Inicio</th>
-                <th className="p-2 text-left">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {prestamosRecientes.map((p: any) => (
-                <tr key={p.id} className="border-t">
-                  <td className="p-2">{p.cliente.nombre}</td>
-                  <td className="p-2">S/ {p.monto}</td>
-                  <td className="p-2">
-                    {format(new Date(p.fechaInicio), "dd/MM")}
-                  </td>
-                  <td className="p-2">
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        p.estado === "PAGADO"
-                          ? "bg-green-100 text-green-800"
-                          : p.estado === "ATRASADO"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {p.estado}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* MODAL CREAR CLIENTE */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Cliente no encontrado</h3>
+            <p className="text-sm text-gray-600 mb-4">¿Deseas registrarlo?</p>
+            <input
+              type="text"
+              placeholder="Nombre completo"
+              value={nuevoCliente.nombre}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+              }
+              className="w-full p-3 border rounded mb-3"
+            />
+            <input
+              type="text"
+              placeholder="Teléfono (opcional)"
+              value={nuevoCliente.telefono}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
+              }
+              className="w-full p-3 border rounded mb-3"
+            />
+            <input
+              type="email"
+              placeholder="Correo (opcional)"
+              value={nuevoCliente.correo}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, correo: e.target.value })
+              }
+              className="w-full p-3 border rounded mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={crearCliente}
+                className="flex-1 py-2 bg-blue-600 text-white rounded font-semibold"
+              >
+                Registrar
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-2 bg-gray-300 text-gray-700 rounded font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
