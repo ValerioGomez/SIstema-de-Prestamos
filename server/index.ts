@@ -1,6 +1,7 @@
 // server/index.ts - VERSIÓN ACTUALIZADA Y CORREGIDA
 import express from "express";
 import cors from "cors";
+import { Prisma } from "@prisma/client"; // Importar tipos de Prisma
 import { prisma } from "../src/lib/prisma";
 import { isBefore } from "date-fns";
 
@@ -24,13 +25,14 @@ app.get("/api/test-db", async (req, res) => {
 
 // ===================== LOGIN TEMPORAL =====================
 app.post("/api/login", async (req, res) => {
+  // TODO: Implementar un sistema de autenticación seguro (ej. JWT) y hasheo de contraseñas (ej. bcrypt)
   const { correo, contraseña } = req.body;
 
   try {
     const usuario = await prisma.usuario.findUnique({
       where: { correo },
     });
-
+    // ¡ADVERTENCIA DE SEGURIDAD! No comparar contraseñas en texto plano en producción.
     if (!usuario || usuario.contraseña !== contraseña) {
       return res.status(401).json({ error: "Credenciales inválidas" });
     }
@@ -52,6 +54,9 @@ app.get("/api/clientes/dni/:dni", async (req, res) => {
       where: { cedula: dni },
       include: { prestamos: { orderBy: { fechaInicio: "desc" } } },
     });
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
     res.json(cliente);
   } catch (error) {
     res.status(500).json({ error: "Error al buscar cliente" });
@@ -207,8 +212,17 @@ app.put("/api/clientes/:id", async (req, res) => {
       },
     });
     res.json(cliente);
-  } catch (error) {
-    res.status(500).json({ error: "Error al actualizar el cliente" });
+  } catch (error: any) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // El registro a actualizar no existe.
+      if (error.code === "P2025") {
+        return res.status(404).json({ error: "Cliente no encontrado." });
+      }
+    }
+    console.error("Error al actualizar cliente:", error);
+    res
+      .status(500)
+      .json({ error: "Ocurrió un error inesperado al actualizar el cliente." });
   }
 });
 
@@ -231,7 +245,14 @@ app.delete("/api/clientes/:id", async (req, res) => {
     // Si no tiene préstamos, proceder a eliminar
     await prisma.cliente.delete({ where: { id } });
     res.status(204).send(); // 204 No Content
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return res
+          .status(404)
+          .json({ error: "Cliente no encontrado para eliminar." });
+      }
+    }
     console.error("Error al eliminar cliente:", error);
     res.status(500).json({ error: "Error al eliminar el cliente" });
   }
